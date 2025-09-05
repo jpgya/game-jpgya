@@ -122,42 +122,7 @@
         </div>
 
         <!-- Firestore Rules snippet (copy-paste) -->
-        <div class="glass rounded-2xl border border-white/20 p-6 text-[11px]">
-          <h4 class="font-bold mb-2">Firestore セキュリティルール (抜粋)</h4>
-<pre class="whitespace-pre-wrap">
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    function isSignedIn() { return request.auth != null; }
-    function isSelf(uid) { return request.auth != null && request.auth.uid == uid; }
-    function maxDeltaMoney(old, neu) {
-      // 1回の書き込みで増やせる資金は最大 150,000
-      return (neu.money - old.money) <= 150000;
-    }
-
-    match /users/{uid} {
-      allow read: if isSignedIn();
-      allow create: if isSelf(uid);
-      allow update: if isSelf(uid) && maxDeltaMoney(resource.data, request.resource.data)
-                    && request.time > resource.data.lastWriteTime
-                    && request.resource.data.lastWriteTime == request.time;
-    }
-
-    match /leaderboard/{uid} {
-      allow read: if true;
-      allow write: if isSelf(uid) && request.resource.data.money <= get(/databases/$(database)/documents/users/$(uid)).data.money;
-    }
-
-    match /bannedUsers/{uid} {
-      allow read: if isSignedIn();
-      // 書き込みは管理者のみ: 管理者UIDを固定リストで
-      allow write: if request.auth.uid in ['YOUR_ADMIN_UID'];
-    }
-  }
-}
-</pre>
-          <p class="opacity-70 mt-2">※ <code>YOUR_ADMIN_UID</code> を実際の管理者UIDに変更。</p>
-        </div>
+        
       </aside>
     </section>
 
