@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Game Company Tycoon – Firebase Edition</title>
+  <!-- Tailwind CDN for quick beautiful UI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { height: 100%; }
+    .glass { backdrop-filter: blur(10px); background: rgba(255,255,255,.7); }
+    .mono { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 text-slate-100">
+  <div class="max-w-6xl mx-auto p-4 md:p-8">
+    <header class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl md:text-3xl font-extrabold">🎮 Game Company Tycoon <span class="opacity-70 text-sm">(Firebase)</span></h1>
+      <div id="auth-area" class="flex gap-2"></div>
+    </header>
+
+    <!-- Status / Alerts -->
+    <div id="alert" class="hidden mb-4 p-3 rounded-xl bg-red-600/20 border border-red-400 text-red-100"></div>
+
+    <!-- Intro / Sign-in card -->
+    <section id="signin-card" class="glass rounded-2xl border border-white/20 shadow-xl p-6 mb-6">
+      <h2 class="text-xl font-bold mb-2">はじめよう</h2>
+      <p class="opacity-80 mb-4">Googleでサインインして、あなたのゲーム会社を立ち上げましょう。</p>
+      <div class="flex gap-3">
+        <button id="btn-google" class="px-4 py-2 rounded-xl bg-white text-slate-900 font-semibold shadow hover:opacity-90">Googleでサインイン</button>
+      </div>
+    </section>
+
+    <!-- Main game area -->
+    <section id="game" class="hidden grid md:grid-cols-3 gap-6">
+      <!-- Company Panel -->
+      <div class="md:col-span-2 space-y-6">
+        <div class="glass rounded-2xl border border-white/20 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-bold">会社情報</h3>
+              <p id="player-name" class="text-sm opacity-80"></p>
+            </div>
+            <span id="tick-indicator" class="text-xs opacity-70">tick: —</span>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="p-4 rounded-xl bg-slate-900/40 border border-white/10">
+              <div class="text-xs opacity-70">資金</div>
+              <div id="money" class="text-2xl mono">—</div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/40 border border-white/10">
+              <div class="text-xs opacity-70">ファン</div>
+              <div id="fans" class="text-2xl mono">—</div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/40 border border-white/10">
+              <div class="text-xs opacity-70">評判</div>
+              <div id="rep" class="text-2xl mono">—</div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-900/40 border border-white/10">
+              <div class="text-xs opacity-70">従業員</div>
+              <div id="emps" class="text-2xl mono">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="glass rounded-2xl border border-white/20 p-6">
+          <h3 class="text-lg font-bold mb-4">アクション</h3>
+          <div class="grid md:grid-cols-2 gap-4">
+            <button id="act-hire" class="w-full p-3 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 text-slate-900 font-bold">開発者を採用 (¥50,000)</button>
+            <button id="act-train" class="w-full p-3 rounded-xl bg-cyan-400/90 hover:bg-cyan-300 text-slate-900 font-bold">社内研修 (評判+1 / ¥10,000)</button>
+            <button id="act-start-proj" class="w-full p-3 rounded-xl bg-indigo-400/90 hover:bg-indigo-300 text-slate-900 font-bold">新作プロジェクト開始 (¥100,000)</button>
+            <button id="act-sprint" class="w-full p-3 rounded-xl bg-yellow-300/90 hover:bg-yellow-200 text-slate-900 font-bold">スプリント (進捗+、バグ±)</button>
+            <button id="act-release" class="w-full p-3 rounded-xl bg-pink-400/90 hover:bg-pink-300 text-slate-900 font-bold">リリース (売上発生)</button>
+            <button id="act-marketing" class="w-full p-3 rounded-xl bg-fuchsia-400/90 hover:bg-fuchsia-300 text-slate-900 font-bold">マーケ (ファン+ / ¥30,000)</button>
+          </div>
+          <p class="text-xs opacity-70 mt-3">※ チート対策: 増加額に制限・トランザクション・セキュリティルールで保護</p>
+        </div>
+
+        <!-- Projects -->
+        <div class="glass rounded-2xl border border-white/20 p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold">進行中プロジェクト</h3>
+            <span id="proj-count" class="text-sm opacity-70">—</span>
+          </div>
+          <div id="projects" class="mt-3 grid gap-3"></div>
+        </div>
+
+        <!-- Released Games -->
+        <div class="glass rounded-2xl border border-white/20 p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold">リリース済みタイトル</h3>
+            <span id="rel-count" class="text-sm opacity-70">—</span>
+          </div>
+          <div id="released" class="mt-3 grid gap-3"></div>
+        </div>
+      </div>
+
+      <!-- Leaderboard & Admin -->
+      <aside class="space-y-6">
+        <div class="glass rounded-2xl border border-white/20 p-6">
+          <h3 class="text-lg font-bold mb-4">ランキング (上位20)</h3>
+          <ol id="leaderboard" class="space-y-2 text-sm"></ol>
+        </div>
+
+        <div id="admin-panel" class="hidden glass rounded-2xl border border-rose-300/40 p-6">
+          <h3 class="text-lg font-bold mb-2">管理 (Ban)</h3>
+          <p class="text-xs opacity-80 mb-3">UIDを入力してBan。取り消しは Firestore で削除。</p>
+          <input id="ban-uid" class="w-full p-2 rounded-lg text-slate-900" placeholder="ユーザーUID" />
+          <input id="ban-reason" class="w-full p-2 rounded-lg text-slate-900 mt-2" placeholder="理由 (例: チート行為)" />
+          <button id="btn-ban" class="mt-3 w-full p-2 rounded-xl bg-red-500 hover:bg-red-400 font-bold text-white">Banする</button>
+        </div>
+
+        <div class="glass rounded-2xl border border-white/20 p-6 text-xs leading-relaxed">
+          <h4 class="font-bold mb-2">使い方</h4>
+          <ul class="list-disc ml-5 space-y-1 opacity-90">
+            <li>採用で人を増やし、プロジェクトを開始してスプリントを回そう。</li>
+            <li>十分に進捗が溜まったらリリース。ファンが増えると売上が上がる。</li>
+            <li>給与やマーケ費用が毎tickで差し引かれるので資金に注意！</li>
+          </ul>
+        </div>
+
+        <!-- Firestore Rules snippet (copy-paste) -->
+        <div class="glass rounded-2xl border border-white/20 p-6 text-[11px]">
+          <h4 class="font-bold mb-2">Firestore セキュリティルール (抜粋)</h4>
+<pre class="whitespace-pre-wrap">
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isSelf(uid) { return request.auth != null && request.auth.uid == uid; }
+    function maxDeltaMoney(old, neu) {
+      // 1回の書き込みで増やせる資金は最大 150,000
+      return (neu.money - old.money) <= 150000;
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isSelf(uid);
+      allow update: if isSelf(uid) && maxDeltaMoney(resource.data, request.resource.data)
+                    && request.time > resource.data.lastWriteTime
+                    && request.resource.data.lastWriteTime == request.time;
+    }
+
+    match /leaderboard/{uid} {
+      allow read: if true;
+      allow write: if isSelf(uid) && request.resource.data.money <= get(/databases/$(database)/documents/users/$(uid)).data.money;
+    }
+
+    match /bannedUsers/{uid} {
+      allow read: if isSignedIn();
+      // 書き込みは管理者のみ: 管理者UIDを固定リストで
+      allow write: if request.auth.uid in ['YOUR_ADMIN_UID'];
+    }
+  }
+}
+</pre>
+          <p class="opacity-70 mt-2">※ <code>YOUR_ADMIN_UID</code> を実際の管理者UIDに変更。</p>
+        </div>
+      </aside>
+    </section>
+
+    <footer class="mt-10 text-center opacity-70 text-xs">
+      <p>© 2025 Game Company Tycoon. Firebase + GitHub Pages デモ。</p>
+    </footer>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script type="module">
+    // ===============================
+    //  Firebase Setup
+    // ===============================
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp, onSnapshot, collection, query, orderBy, limit, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
+    // TODO: ここをあなたのFirebase設定に置き換え
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // UI refs
+    const $ = (s, r=document) => r.querySelector(s);
+    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+    const authArea = $("#auth-area");
+    const signinCard = $("#signin-card");
+    const game = $("#game");
+    const alertBox = $("#alert");
+
+    const ui = {
+      name: $("#player-name"), money: $("#money"), fans: $("#fans"), rep: $("#rep"), emps: $("#emps"),
+      projects: $("#projects"), projCount: $("#proj-count"), released: $("#released"), relCount: $("#rel-count"),
+      leaderboard: $("#leaderboard"), tick: $("#tick-indicator"), admin: $("#admin-panel")
+    };
+
+    const ADMINS = ["YOUR_ADMIN_UID"]; // 管理者UID（複数可）
+
+    // Helpers
+    function yen(n){ return `¥${Math.floor(n).toLocaleString()}`; }
+    function showAlert(msg){ alertBox.textContent = msg; alertBox.classList.remove('hidden'); }
+    function clearAlert(){ alertBox.classList.add('hidden'); }
+
+    // ============ Auth ============
+    const provider = new GoogleAuthProvider();
+    $("#btn-google").addEventListener("click", async () => {
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (e) {
+        showAlert("サインインに失敗しました: " + e.message);
+      }
+    });
+
+    function renderSignedOut(){
+      signinCard.classList.remove('hidden');
+      game.classList.add('hidden');
+      authArea.innerHTML = '';
+    }
+
+    function renderSignedIn(user){
+      signinCard.classList.add('hidden');
+      game.classList.remove('hidden');
+      authArea.innerHTML = `
+        <div class="text-sm mr-2">${user.displayName || 'Player'}</div>
+        <button id="btn-logout" class="px-3 py-1 rounded-lg bg-white text-slate-900 font-semibold">ログアウト</button>`;
+      $("#btn-logout").addEventListener('click', () => signOut(auth));
+    }
+
+    // 初期ユーザーデータ
+    function initialUser(uid, user){
+      return {
+        name: user.displayName || 'Player',
+        money: 300000, // 初期資金 30万
+        fans: 0,
+        reputation: 1,
+        employees: 1,
+        projects: [], // { id, name, progress, bugs, quality }
+        released: [], // { id, name, quality, fansGain, baseRevenue }
+        lastWriteTime: new Date(0),
+        updatedAt: serverTimestamp()
+      };
+    }
+
+    async function ensureUserDoc(uid, user){
+      const uref = doc(db, 'users', uid);
+      const snap = await getDoc(uref);
+      if (!snap.exists()) {
+        await setDoc(uref, initialUser(uid, user));
+      }
+    }
+
+    // Banチェック
+    async function checkBan(uid){
+      const bref = doc(db, 'bannedUsers', uid);
+      const bsnap = await getDoc(bref);
+      if (bsnap.exists()) throw new Error('このアカウントはBANされています: ' + (bsnap.data().reason || '理由不明'));
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      clearAlert();
+      if (!user) return renderSignedOut();
+      try {
+        await checkBan(user.uid);
+        await ensureUserDoc(user.uid, user);
+        renderSignedIn(user);
+        ui.name.textContent = user.displayName || 'Player';
+        ui.admin.classList.toggle('hidden', !ADMINS.includes(user.uid));
+        listenUser(user.uid);
+        listenLeaderboard();
+        bindAdmin(user.uid);
+      } catch(e){
+        showAlert(e.message);
+        await signOut(auth);
+      }
+    });
+
+    // ============ Game Logic ============
+    const COST = { hire: 50000, train: 10000, project: 100000, marketing: 30000 };
+    const LIMITS = { deltaMoneyPerWrite: 150000 };
+
+    function randomName(){
+      const a = ['Super','Mega','Ultra','Hyper','Neo','Quantum','Pixel','Retro','Cyber','Myth'];
+      const b = ['Quest','Runner','Tycoon','Saga',' Odyssey',' Legends',' Maker',' Arena',' Raid',' Factory'];
+      return a[Math.floor(Math.random()*a.length)] + b[Math.floor(Math.random()*b.length)];
+    }
+
+    function capDelta(oldMoney, newMoney){
+      return Math.min(newMoney, oldMoney + LIMITS.deltaMoneyPerWrite);
+    }
+
+    async function txUpdate(uid, mutator){
+      const uref = doc(db, 'users', uid);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(uref);
+        const data = snap.data();
+        const next = JSON.parse(JSON.stringify(data));
+        mutator(next);
+        // Anti-cheat: cap money increase per write & monotonic lastWriteTime
+        next.money = capDelta(data.money, next.money);
+        next.lastWriteTime = new Date();
+        tx.update(uref, next);
+      });
+      // スコア反映
+      const usnap = await getDoc(doc(db, 'users', uid));
+      const u = usnap.data();
+      await setDoc(doc(db, 'leaderboard', uid), { name: u.name, money: u.money }, { merge: true });
+    }
+
+    function renderUser(u){
+      ui.money.textContent = yen(u.money);
+      ui.fans.textContent = u.fans.toLocaleString();
+      ui.rep.textContent = u.reputation;
+      ui.emps.textContent = u.employees;
+
+      ui.projects.innerHTML = '';
+      (u.projects||[]).forEach(p => {
+        const el = document.createElement('div');
+        el.className = 'p-3 rounded-xl bg-slate-900/40 border border-white/10';
+        el.innerHTML = `<div class="flex items-center justify-between">
+          <div class="font-semibold">${p.name}</div>
+          <div class="text-xs opacity-70">進捗 ${p.progress}% / バグ ${p.bugs}</div>
+        </div>
+        <div class="w-full bg-white/10 rounded h-2 mt-2"><div class="h-2 rounded bg-white/60" style="width:${p.progress}%"></div></div>`;
+        ui.projects.appendChild(el);
+      });
+      ui.projCount.textContent = `${(u.projects||[]).length}件`;
+
+      ui.released.innerHTML = '';
+      (u.released||[]).slice(-8).reverse().forEach(g => {
+        const el = document.createElement('div');
+        el.className = 'p-3 rounded-xl bg-slate-900/40 border border-white/10';
+        el.innerHTML = `<div class="flex items-center justify-between">
+          <div class="font-semibold">${g.name}</div>
+          <div class="text-xs opacity-70">品質 ${g.quality} / 基礎売上 ${yen(g.baseRevenue)}</div>
+        </div>`;
+        ui.released.appendChild(el);
+      });
+      ui.relCount.textContent = `${(u.released||[]).length}本`;
+    }
+
+    let unsubUser = null;
+    function listenUser(uid){
+      if (unsubUser) unsubUser();
+      unsubUser = onSnapshot(doc(db, 'users', uid), (snap) => {
+        if (snap.exists()) renderUser(snap.data());
+      });
+    }
+
+    let unsubLB = null;
+    function listenLeaderboard(){
+      if (unsubLB) unsubLB();
+      const qy = query(collection(db, 'leaderboard'), orderBy('money', 'desc'), limit(20));
+      unsubLB = onSnapshot(qy, (qs) => {
+        ui.leaderboard.innerHTML = '';
+        let i = 1;
+        qs.forEach(d => {
+          const li = document.createElement('li');
+          li.innerHTML = `<span class="mr-2 opacity-70">#${i++}</span> <span class="font-semibold">${d.data().name || 'Player'}</span> <span class="float-right mono">${yen(d.data().money||0)}</span>`;
+          ui.leaderboard.appendChild(li);
+        });
+      });
+    }
+
+    // ========= Actions =========
+    function bindActions(uid){
+      $('#act-hire').onclick = () => txUpdate(uid, (u) => {
+        if (u.money < COST.hire) return; u.money -= COST.hire; u.employees += 1;
+      });
+      $('#act-train').onclick = () => txUpdate(uid, (u) => {
+        if (u.money < COST.train) return; u.money -= COST.train; u.reputation = Math.min(u.reputation+1, 10);
+      });
+      $('#act-start-proj').onclick = () => txUpdate(uid, (u) => {
+        if (u.money < COST.project) return; u.money -= COST.project;
+        u.projects.push({ id: crypto.randomUUID(), name: randomName(), progress: 0, bugs: 0, quality: u.reputation });
+      });
+      $('#act-sprint').onclick = () => txUpdate(uid, (u) => {
+        if (!u.projects.length) return;
+        for (const p of u.projects){
+          const speed = Math.max(1, Math.floor(u.employees * (0.6 + Math.random()*0.8)));
+          p.progress = Math.min(100, p.progress + speed);
+          p.bugs = Math.max(0, p.bugs + Math.floor((Math.random()*4) - 1));
+        }
+      });
+      $('#act-release').onclick = () => txUpdate(uid, (u) => {
+        const idx = u.projects.findIndex(p => p.progress >= 80);
+        if (idx === -1) return;
+        const p = u.projects.splice(idx, 1)[0];
+        const quality = Math.max(1, Math.min(10, Math.round((p.quality + (100-p.bugs)/20 + u.reputation)/3)));
+        const baseRevenue = Math.round(40000 * quality + u.fans * (50 + Math.random()*50));
+        u.released.push({ id: p.id, name: p.name, quality, baseRevenue });
+        const fansGain = Math.round(quality * (30 + Math.random()*120));
+        u.fans += fansGain;
+      });
+      $('#act-marketing').onclick = () => txUpdate(uid, (u) => {
+        if (u.money < COST.marketing) return; u.money -= COST.marketing; u.fans += Math.round(200 + Math.random()*400);
+      });
+    }
+
+    // ========= Tick (passive income / salaries) =========
+    let tickTimer = null; let tickCount = 0;
+    function startTick(uid){
+      if (tickTimer) clearInterval(tickTimer);
+      tickTimer = setInterval(async () => {
+        tickCount++; ui.tick.textContent = `tick: ${tickCount}`;
+        await txUpdate(uid, (u) => {
+          // 売上: 各リリースタイトルから基礎売上の一部 + 乱数
+          let income = 0; for (const g of (u.released||[])){
+            const decay = 0.98; // 売上の減衰
+            g.baseRevenue = Math.floor(g.baseRevenue * decay);
+            income += Math.max(0, Math.floor(g.baseRevenue * 0.2 + Math.random()*3000));
+          }
+          // 給与コスト: 従業員 * 8000
+          const salaries = (u.employees||0) * 8000;
+          // 会社維持費
+          const upkeep = 3000;
+          u.money = u.money + income - salaries - upkeep;
+          // 破産防止: マイナスになったら少額の救済
+          if (u.money < 0) { u.money = 50000; u.reputation = Math.max(1, u.reputation-1); }
+        });
+      }, 5000); // 5秒ごと
+    }
+
+    function bindAdmin(uid){
+      bindActions(uid);
+      startTick(uid);
+      // Ban
+      $('#btn-ban').onclick = async () => {
+        if (!ADMINS.includes(uid)) return alert('権限がありません');
+        const tUid = $('#ban-uid').value.trim();
+        const reason = $('#ban-reason').value.trim() || 'チート・不正';
+        if (!tUid) return alert('UIDを入力');
+        await setDoc(doc(db, 'bannedUsers', tUid), { reason, bannedAt: serverTimestamp() }, { merge: true });
+        alert('Banしました');
+      };
+    }
+  </script>
+</body>
+</html>
