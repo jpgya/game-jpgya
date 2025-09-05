@@ -408,5 +408,19 @@
       };
     }
   </script>
+  <script type="module">
+import { initGame } from './etc.js';
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
+const auth = getAuth();
+const db = getFirestore();
+
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+onAuthStateChanged(auth, user=>{
+  if(user) initGame(user, db);
+});
+</script>
+
 </body>
 </html>
